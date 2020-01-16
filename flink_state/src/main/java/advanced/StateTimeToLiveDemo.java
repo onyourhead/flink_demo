@@ -1,5 +1,6 @@
 package advanced;
 
+import source.SlowlyIncrementTupleSource;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.state.ValueState;
@@ -11,7 +12,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Collector;
-import source.SlowlyIncrementTupleSource;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -59,7 +59,7 @@ public class StateTimeToLiveDemo {
                             "timeout", // the state name
                             TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>() {
                             }));
-//            descriptor.enableTimeToLive(ttlConfig);
+            descriptor.enableTimeToLive(ttlConfig);
             valueState = getRuntimeContext().getState(descriptor);
         }
 
@@ -69,9 +69,9 @@ public class StateTimeToLiveDemo {
             // 更新状态，会重置TTL
             valueState.update(input);
             System.out.println(dateFormat.format(new Date(System.currentTimeMillis())) + "更新后的状态：" + valueState.value());
-            // 睡眠500毫秒，再获取状态，未超时，可正常获取
+            // TTL为1秒，此时睡眠500毫秒，再获取状态，未超时，可正常获取
 //            Thread.sleep(500);
-            // 睡眠1秒，TTL超时，状态被清除，此时获取为null
+            // TTL为1秒，此时睡眠1秒，TTL超时，状态被清除，此时获取为null
             Thread.sleep(1000);
             System.out.println(dateFormat.format(new Date(System.currentTimeMillis())) + "更新1秒后的状态：" + valueState.value());
 

@@ -1,5 +1,6 @@
 package basic.operatorstate;
 
+import source.RandomLetterAndNumberSource;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.typeinfo.TypeHint;
@@ -11,10 +12,10 @@ import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
-import source.RandomLetterAndNumberSource;
 
 import java.util.ArrayList;
 import java.util.List;
+
 /**
  * @author 张政淇
  * @class CheckpointedFunctionDemo

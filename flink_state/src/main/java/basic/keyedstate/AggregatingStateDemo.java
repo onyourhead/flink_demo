@@ -1,5 +1,6 @@
 package basic.keyedstate;
 
+import source.RandomLetterAndNumberSource;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.AggregatingState;
@@ -7,53 +8,42 @@ import org.apache.flink.api.common.state.AggregatingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Collector;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * @author 张政淇
  * @class AggregatingStateDemo
- * @desc 相比ReducingState，AggregatingState同样支持支持增量更新，但是允许不同数据类型的输入
+ * @desc 相比ReducingState，AggregatingState同样支持支持增量更新，
+ * 但是ReducingState直接使用输入数据进行累加，AggregatingState允许创建一个累加器，以便更灵活地支持不同数据类型的输入累加
  * @date 2019/12/30 16:39
  */
 public class AggregatingStateDemo {
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        List<Tuple2<String, String>> tuple2List = new ArrayList<>();
-        tuple2List.add(Tuple2.of("b", "b21"));
-        tuple2List.add(Tuple2.of("a", "a83"));
-        tuple2List.add(Tuple2.of("a", "a35"));
-        tuple2List.add(Tuple2.of("a", "separator"));
-        tuple2List.add(Tuple2.of("b", "b11"));
-        tuple2List.add(Tuple2.of("a", "a29"));
-        tuple2List.add(Tuple2.of("c", "c6"));
-        tuple2List.add(Tuple2.of("a", "separator"));
-        tuple2List.add(Tuple2.of("b", "separator"));
-        tuple2List.add(Tuple2.of("b", "b83"));
-        tuple2List.add(Tuple2.of("b", "b73"));
-        DataStream<Tuple2<String, String>> dataStream = env.fromCollection(tuple2List);
-        dataStream.keyBy(0).flatMap(new CustomWindow()).print();
+        env.addSource(new RandomLetterAndNumberSource())
+                .keyBy(0)
+                .flatMap(new CountFunction())
+                .print();
         env.execute();
     }
 
-    public static class CustomWindow extends RichFlatMapFunction<Tuple2<String, String>, Integer> {
-        private transient AggregatingState<String, Integer> aggregatingState;
+    public static class CountFunction extends RichFlatMapFunction<Tuple2<String, Integer>, Integer> {
+        private int count = 0;
+        private transient AggregatingState<Tuple2<String, Integer>, Integer> aggregatingState;
 
         @Override
         public void open(Configuration parameters) throws Exception {
             super.open(parameters);
-            AggregatingStateDescriptor<String, Integer, Integer> descriptor = new AggregatingStateDescriptor<String, Integer, Integer>("aggregatingState", new AggregateFunction<String, Integer, Integer>() {
+            AggregatingStateDescriptor<Tuple2<String, Integer>, Integer, Integer> descriptor = new AggregatingStateDescriptor<Tuple2<String, Integer>, Integer, Integer>(
+                    "aggregatingState", new AggregateFunction<Tuple2<String, Integer>, Integer, Integer>() {
                 @Override
                 public Integer createAccumulator() {
                     return 0;
                 }
 
                 @Override
-                public Integer add(String value, Integer accumulator) {
+                public Integer add(Tuple2<String, Integer> value, Integer accumulator) {
                     return accumulator + 1;
                 }
 
@@ -71,14 +61,14 @@ public class AggregatingStateDemo {
         }
 
         @Override
-        public void flatMap(Tuple2<String, String> value, Collector<Integer> out) throws Exception {
-            if ("separator".equals(value.f1)) {
-                // 遇到分隔符，输出之前两个分隔符之间数据的个数
+        public void flatMap(Tuple2<String, Integer> value, Collector<Integer> out) throws Exception {
+            count++;
+            if (count % 1000 == 0) {
                 out.collect(aggregatingState.get());
                 aggregatingState.clear();
             } else {
                 // 增量更新AggregatingState，这里每来一个新元素，对ACC累加1
-                aggregatingState.add(value.f1);
+                aggregatingState.add(value);
             }
         }
     }

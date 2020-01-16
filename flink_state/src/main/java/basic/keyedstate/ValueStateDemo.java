@@ -1,5 +1,6 @@
 package basic.keyedstate;
 
+import source.SlowlyIncrementTupleSource;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
@@ -18,39 +19,39 @@ import org.apache.flink.util.Collector;
 public class ValueStateDemo {
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.fromElements(Tuple2.of(1L, 3L), Tuple2.of(1L, 5L), Tuple2.of(1L, 7L), Tuple2.of(1L, 4L), Tuple2.of(1L, 2L))
+        env.addSource(new SlowlyIncrementTupleSource())
                 .keyBy(0)
                 .flatMap(new CountWindowAverage())
                 .print();
         env.execute();
     }
 
-    public static class CountWindowAverage extends RichFlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> {
+    public static class CountWindowAverage extends RichFlatMapFunction<Tuple2<Integer, Integer>, Tuple2<Integer, Integer>> {
 
         /**
          * 第一个字段是总数统计，第二个字段是当前总和。
          */
-        private transient ValueState<Tuple2<Long, Long>> sum;
+        private transient ValueState<Tuple2<Integer, Integer>> sum;
 
         @Override
         public void open(Configuration config) {
-            ValueStateDescriptor<Tuple2<Long, Long>> descriptor =
+            ValueStateDescriptor<Tuple2<Integer, Integer>> descriptor =
                     new ValueStateDescriptor<>(
                             "average", // the state name
-                            TypeInformation.of(new TypeHint<Tuple2<Long, Long>>() {
+                            TypeInformation.of(new TypeHint<Tuple2<Integer, Integer>>() {
                             }));
             sum = getRuntimeContext().getState(descriptor);
         }
 
         @Override
-        public void flatMap(Tuple2<Long, Long> input, Collector<Tuple2<Long, Long>> out) throws Exception {
+        public void flatMap(Tuple2<Integer, Integer> input, Collector<Tuple2<Integer, Integer>> out) throws Exception {
 
             // 获取ValueState的值
-            Tuple2<Long, Long> currentSum = sum.value();
+            Tuple2<Integer, Integer> currentSum = sum.value();
 
             // 手动设定初始值
             if (currentSum == null) {
-                currentSum = Tuple2.of(0L, 0L);
+                currentSum = Tuple2.of(0, 0);
             }
 
             // 更新count

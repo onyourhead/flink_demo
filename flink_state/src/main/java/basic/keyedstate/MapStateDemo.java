@@ -1,5 +1,6 @@
 package basic.keyedstate;
 
+import source.RainfallSource;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.state.MapState;
 import org.apache.flink.api.common.state.MapStateDescriptor;
@@ -11,33 +12,17 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.util.Collector;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * @author 张政淇
  * @class MapStateDemo
- * @desc todo
+ * @desc 此例持续划分降雨情况，将数据进行分组累积，获得代表已有数据的概要统计模型
  * @date 2019/12/30 16:56
  */
 public class MapStateDemo {
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        List<Tuple3<String, String, Integer>> tuple3List = new ArrayList<>();
-        tuple3List.add(Tuple3.of("2019年12月30日", "北京", 83));
-        tuple3List.add(Tuple3.of("2019年06月22日", "上海", 29));
-        tuple3List.add(Tuple3.of("2019年11月06日", "成都", 45));
-        tuple3List.add(Tuple3.of("2018年03月12日", "南京", 21));
-        tuple3List.add(Tuple3.of("2017年01月10日", "天津", 46));
-        tuple3List.add(Tuple3.of("2018年09月29日", "北京", 12));
-        tuple3List.add(Tuple3.of("2019年02月15日", "成都", 63));
-        tuple3List.add(Tuple3.of("2019年12月03日", "北京", 33));
-        tuple3List.add(Tuple3.of("2018年09月08日", "南京", 49));
-        tuple3List.add(Tuple3.of("2018年12月14日", "南京", 11));
-        tuple3List.add(Tuple3.of("2017年12月22日", "上海", 6));
-        tuple3List.add(Tuple3.of("2018年12月17日", "天津", 15));
-        DataStream<Tuple3<String, String, Integer>> dataStream = env.fromCollection(tuple3List);
-        // 因本例中mapState持续更新，可设置StateBackend后进行查询，本例中无输出结果
+        DataStream<Tuple3<String, String, Integer>> dataStream = env.addSource(new RainfallSource());
+        // 本例中mapState持续更新，暂无输出结果
         dataStream.keyBy(new KeySelector<Tuple3<String, String, Integer>, String>() {
             @Override
             public String getKey(Tuple3<String, String, Integer> value) throws Exception {
@@ -60,9 +45,8 @@ public class MapStateDemo {
         }
 
         /**
-         * @description 按降雨毫米量划分级别，并count各级别雨势已出现次数
          * @param value 输入元组（日期，城市，降雨量）
-         * @return 无输出
+         * @desc  按降雨毫米量划分级别，并count各级别雨势已出现次数
          **/
         @Override
         public void flatMap(Tuple3<String, String, Integer> value, Collector<String> out) throws Exception {
